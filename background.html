@@ -1,0 +1,324 @@
+
+  var notification = null;
+  var notificationRunning = false;
+  var currUsername = null;
+  var interValVar = null;
+  chrome.extension.onMessage.addListener(
+  function(request, sender, sendResponse) {
+	
+    if (request.app == "twt"){
+		shortenUrl(request.url,sendResponse);
+		return true;
+	  }
+	  else if(request.app == "prev")
+	  {
+		loadPrevTweet(request.url,sendResponse);
+		return true;
+	  }
+	  else if(request.app == "men") //check mentions
+	  {
+		if (localStorage["DisableDesktopAlerts"] == "true")
+		{
+			console.log("Disable checking for mentions");
+			clearInterval(interValVar)
+			HideMentionsAlert();
+			return false;
+		}
+		
+		var username = request.username;
+		if (username == ''){
+			console.log("Username empty");
+			return false;
+		}
+		console.log("Clear interval");
+		//check if the username changed (login with another account)
+		if (username != currUsername){
+			console.log("new username:"+username);
+			notificationRunning = false;}
+			
+		
+		currUsername = username ;
+		if (interValVar != null)
+			clearInterval(interValVar)
+		console.log("Clear interval");
+		interValVar = setInterval(function(){checkForMentions(username,sendResponse)},15000);
+		console.log("Interval started");
+		return true;
+	  }
+	  else if(request.app == "sa") //Show Alert (mentions)
+	  {
+		ShowMentionAlert(request.nom)
+		sendResponse({});
+		return true;
+	  }
+	  else if(request.app == "ha") //Hide Alert (mentions)
+	  {
+		HideMentionsAlert();
+		sendResponse({});
+		return true;
+	  }
+	  else if(request.app == "color")
+	  {
+		if ( localStorage["HighLightColor"] == null)
+			localStorage["HighLightColor"] = "#FFFFCC";
+		sendResponse({result:localStorage["HighLightColor"]});
+		return true;
+	  }
+	  else if(request.app == "getoldtwitter")
+	  {
+		if ( localStorage["oldtwitter"] == null)
+			localStorage["oldtwitter"] = 0;
+		sendResponse({result:localStorage["oldtwitter"]});
+		return true;
+	  }
+	  else if(request.app == "setoldtwitter")
+	  {
+			localStorage["oldtwitter"] = 1;
+		sendResponse({});
+		return true;
+	  }
+	  else if(request.app == "mas") //mention alert status
+	  {
+		if ( localStorage["DisableDesktopAlerts"] == null){
+			localStorage["DisableDesktopAlerts"] = false;}
+		sendResponse({result:localStorage["DisableDesktopAlerts"]});
+		return true;
+	  }
+	  else if(request.app == "ast")
+	  {
+		if ( localStorage["AutoSwitch"] == null)
+			localStorage["AutoSwitch"] = "0";
+		sendResponse({result:localStorage["AutoSwitch"]});
+		return true;
+	  }
+	   else if(request.app == "MyLang")
+	  {
+		if ( localStorage["MyLang"] == null)
+			localStorage["MyLang"] = "en";
+		sendResponse({result:localStorage["MyLang"]});
+		return true;
+	  }
+	  else if(request.app == "UpdateLastID")
+	  {
+		UpdateLastID(request.username);
+		sendResponse({});
+		return true;
+	  }
+	  else if(request.app == "GetLastID")
+	  {
+		sendResponse({result:localStorage["LastID"]});
+		return true;
+	  }
+	  else if(request.app == "SetLastID")
+	  {
+		localStorage["LastID"] = request.lastID ;
+		sendResponse({});
+		return true;
+	  }
+	  else if (request.app == "tr"){
+		//alert(request.tweet);
+		translate(request.tweet,sendResponse);
+		return true;
+	  }
+	  else if(request.app == "startUp")
+	  {
+		chrome.pageAction.show(sender.tab.id);
+		//chrome.pageAction.onClicked.addListener( function (tab) {
+		//	chrome.tabs.create({ url: chrome.extension.getURL('options.html'), selected: true });
+		//});
+		return true;
+	  }	
+    else
+      sendResponse({}); // snub them.
+  });
+  
+  function loadPrevTweet(url,sendResponse)
+  {
+	
+	try
+	{
+		//var html =  $('#result').load(url +"").text();
+		alert($('#result').html());
+		$('#result').load(url+ " .status-content",function(responseText, textStatus, ajx){
+			alert("responseText:"+responseText);
+			alert("textStatus:"+textStatus);
+			sendResponse({result: $('#result').html()});
+		});
+		
+		//alert(html);
+		//sendResponse({result: html});
+	}
+	catch(err) {
+		alert(err);
+	}
+  
+  }
+  
+   
+	var languageFrom = "";
+	var languageTo = "ar";
+	var text = "translate this.";
+	var appId = "28A5B5E290EA97AE76745170DD502D7AAABF62D8";
+	function translate(twt,sendResponse) {
+	
+		try
+		{
+			console.log("translating:"+twt);
+			languageTo = localStorage["MyLang"]!=null?localStorage["MyLang"]:"en";
+			text = twt;
+			var url = "http://api.microsofttranslator.com/v2/Http.svc/Translate?contentType=text/plain&appId=" + appId +  "&from=&to=" + languageTo + "&text=" + encodeURIComponent(text) ;
+			
+			$.get(url, function(data) {
+			  sendResponse({result:$(data).text()});
+			});
+		}
+		catch(err) {
+			alert(err);
+		}
+		
+	}
+    
+  
+  
+  function shortenUrl(url,sendResponse)
+  {
+	  var username="iamviewing";
+	  var apiKey = "R_8be93702bf59f9822f406e92fd46134b";
+	  var longUrl = url;
+	  var shortUrl = undefined;
+	  
+	  if (localStorage["bitlyUserName"]!=null && localStorage["bitlyUserName"]!='')
+		username = localStorage["bitlyUserName"];
+	  
+	  if (localStorage["bitlyPassword"]!=null && localStorage["bitlyPassword"]!='')
+		apiKey = localStorage["bitlyPassword"];
+		
+	  var url = "http://api.bit.ly/shorten?version=2.0.1" +
+				"&login=" + username + 
+				"&apiKey=" + apiKey +
+				"&longUrl=" + escape(longUrl) ;
+	  var req = new XMLHttpRequest();			
+			req.open(
+				"GET",
+				url
+				,
+			true);
+			
+			req.onload = function() {
+				//alert("processing");
+				try{
+					var response = eval('(' + req.responseText + ')');
+					if(response && response.results) {
+						
+						shortUrl =  response.results[longUrl].shortUrl;
+						if (shortUrl == undefined)
+							shortUrl = '';
+					}
+					else {
+						
+						shortUrl =  longUrl;
+						}
+						sendResponse({result: shortUrl});
+				}catch(err) {alert(err.message);}
+				}
+			req.send(null);
+   }
+   
+   newID = null; 
+   function checkForMentions(username,sendResponse){
+	
+		
+		var lastID = localStorage["LastID"];
+		var url = 'http://search.twitter.com/search.json?q=@'+username;
+		console.log("Url:"+url);
+		$.getJSON(url,function(data){					
+		console.log("data:"+data);
+			if (lastID != null)
+				if (lastID == data.results[0].id){
+					return false;
+				}
+			console.log("LastID:"+lastID);
+			
+			var counter = 0;
+			$.each(data.results,function(i){
+				if (lastID != data.results[i].id){
+					counter ++;
+					console.log("new mention:"+i)
+				}
+				else 
+				{
+					
+					
+					if (newID != counter){
+						newID = counter;
+						ShowMentionAlert(counter);
+					}
+					return false;
+				}
+			});
+				if (newID != null)return false;
+				
+				var itemCount = data.results.length;
+				newID = itemCount;
+				ShowMentionAlert(itemCount + "+");
+		});
+				
+				
+				
+	}
+	
+	function ShowMentionAlert(numberOfMentions)
+	{
+		if (localStorage["DisableDesktopAlerts"]== false)
+			return false;
+		
+		 var DisableDesktopAlerts =  localStorage["DisableDesktopAlerts"];
+		 console.log("numberOfMentions:"+numberOfMentions);
+		 console.log("DisableDesktopAlerts:"+DisableDesktopAlerts);
+		 
+		 if (DisableDesktopAlerts == null)
+			DisableDesktopAlerts = false;
+			
+		 if (DisableDesktopAlerts == true)
+			return false;
+			
+		 HideMentionsAlert();
+		 console.log("Show Alert");
+		 notification = webkitNotifications.createNotification(
+		  'icons/icon.png',  // icon url - can be relative
+		  'New Mentions!',  // notification title
+		  'You have '+numberOfMentions+' new mention/s in Twitter'  // notification body text
+		);
+		notification.ondisplay = function(){setTimeout(function(){notification.cancel();},10000) };
+		notification.show();
+	}
+	function HideMentionsAlert()
+	{
+		if (notification != null){
+			notification.cancel();
+			notificatoin = null;
+			console.log("Hide Alert");
+		}
+	}
+	
+   function UpdateLastID(username){
+		$.getJSON('http://search.twitter.com/search.json?q=@'+username,function(data){
+			localStorage["LastID"] = data.results[0].id ;
+		});
+   }
+   
+   function startUp() {
+   var currentVersion = '1.6.3';
+   var version = localStorage["version"];
+   if (version != currentVersion) {
+      chrome.tabs.create({ url: chrome.extension.getURL('welcome.html'), selected: true });
+		localStorage["version"] = currentVersion;
+      }
+   }
+   
+  
+   chrome.runtime.onUpdateAvailable.addListener(function(obj){
+	if (localStorage["new-version-"+obj.version+"alert"]!="1")
+		alert("There is a new version of Tareem Extender (Twitter Extender) comming up , Please make sure that you enable the extension from the Extensions Page after the update. Thanks");
+	localStorage["new-version-"+obj.version+"alert"] = "1";
+   });

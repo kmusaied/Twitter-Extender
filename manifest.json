@@ -1,0 +1,26 @@
+{
+"manifest_version": 2,
+  "name": "Tareem Extender",
+  "version": "5.0.2",
+  "description": "More Features to Twitter.com AKA 'Twitter Extender' ",
+  "page_action": {
+    "default_icon": "icons/icon_24.png", 
+    "default_title": "Tareem Extender v5.0.2 is Active"
+  },
+  "icons": { "48": "icons/icon.png", "64": "icons/icon.png","128": "icons/icon.png" },
+  "content_scripts": [
+    {
+      "matches": ["http://*.twitter.com/*","https://*.twitter.com/*"],
+      "js": ["jquery.js","code.js"]
+    }
+  ],
+  "background": {"scripts":["background.html","jquery.js"],"persistent": false},
+  "options_page":"options.html",
+  
+  "permissions": [
+    "tabs","http://api.bit.ly/","http://api.microsofttranslator.com/","http://search.twitter.com/","notifications"
+  ],
+  "web_accessible_resources": [
+    "icons/icon.png"
+  ]
+}
